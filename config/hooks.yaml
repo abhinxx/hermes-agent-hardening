@@ -1,0 +1,53 @@
+# Hooks block for ~/.hermes/config.yaml
+#
+# Merge this into your config.yaml under a top-level `hooks:` key.
+# `scripts/install.sh` does it for you with a backup.
+#
+# ORDER MATTERS within an event: the first valid block directive wins.
+# Cheap, high-precision gates go first.
+#
+# TIER 0 = enforced (a tool call is refused)
+# TIER 3 = advisory (a line of context is injected)
+
+hooks:
+  pre_llm_call:
+    # TIER 0 - arms the question-gate for this turn. MUST run before any
+    # pre_tool_call gate can consult it. Also injects the answer-only
+    # reminder when the strict classifier fires.
+    - command: "~/.hermes/agent-hooks/question_gate_pre_llm.py"
+      timeout: 10
+
+    # TIER 3 - keyword-matches the message against your skill index and
+    # suggests up to 3 skills. Attacks the real root cause: skills exist and
+    # never get loaded.
+    - command: "~/.hermes/agent-hooks/skill_suggest.py"
+      timeout: 10
+
+  pre_tool_call:
+    # TIER 0 - block mutating tools on an answer-only turn.
+    # fail_closed is deliberately NOT set: this is a discipline gate, not a
+    # security boundary. If it cannot evaluate, work should proceed.
+    - matcher: "write_file|patch|terminal|browser_exec|delegate_task|execute_code"
+      command: "~/.hermes/agent-hooks/question_gate_pre_tool.py"
+      timeout: 10
+
+    # TIER 0 - refuse whole-file rewrites of large existing files.
+    - matcher: "write_file"
+      command: "~/.hermes/agent-hooks/no_full_rewrite.py"
+      timeout: 10
+
+    # TIER 0 - single-owner browser lock. This one IS worth failing closed:
+    # a browser race costs more than a refused call.
+    - matcher: "browser_exec"
+      command: "~/.hermes/agent-hooks/browser_lock.py"
+      timeout: 10
+      fail_closed: true
+
+  subagent_stop:
+    # TIER 0 - persist every child's output to ~/hermes_runs/<session>/
+    - command: "~/.hermes/agent-hooks/persist_subagent.py"
+      timeout: 15
+
+# First-use consent: each (event, command) pair prompts once. On a headless
+# or CI run, set this true or pass --accept-hooks.
+hooks_auto_accept: false

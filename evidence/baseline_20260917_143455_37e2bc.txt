@@ -1,0 +1,49 @@
+session   20260917_143455_37e2bc
+title     Research paper + presentation. 2 components…
+model     claude-opus-5  (reasoning: xhigh)
+
+  api calls              181
+  output tokens          235,849
+  rows raw / deduped     720 / 478
+  user messages          83
+  subagents spawned      14
+
+BEHAVIOUR
+  mode violations        28   <- acted when asked a question
+  narration-then-tool    61   <- announced work, showed no result
+  interrupted calls      1   <- tool_calls with no result row
+  skill loads            3  (1.66 per 100 api calls)
+  silence gaps >60s      43
+
+LATENCY to a substantive answer
+  median 35s   p90 218s   max 3158s
+
+TOOLS
+  browser_exec                 43
+  terminal                     35
+  patch                        30
+  web_search                   27
+  web_extract                  18
+  delegate_task                18
+  write_file                   7
+  session_search               4
+  read_file                    4
+  skill_view                   3
+  mcp__linkup__linkup_search   2
+
+USAGE BY TASK
+  main                 api=181    out_tokens=235,849
+  background_review    api=41     out_tokens=60,672
+
+USER ESCALATION CURVE
+  bucket        msgs  profanity  avg_caps  avg_chars
+  09-17 14:30     11        5      0.01      212
+  09-17 15:00      8        0      0.02      274
+  09-19 11:30      3        9      0.38      21261
+  09-19 12:30      2        1      0.00      63
+  09-19 13:00     25       62      0.20      461
+  09-19 13:30      8       18      0.38      244
+  09-19 14:00      8       11      0.01      534
+  09-19 14:30     14       12      0.03      268
+  09-19 15:00      1        0      0.00      31
+  09-19 15:30      3        0      0.01      212
