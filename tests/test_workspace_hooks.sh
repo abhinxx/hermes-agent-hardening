@@ -88,7 +88,10 @@ N2=$(cd "$PROJ" && git rev-list --count HEAD)
 [[ "$N2" == "1" ]] && ok "attempt>0 does not double-commit" || bad "got $N2"
 
 echo "== secrets gate holds the commit =="
-printf 'KEY = "sk-ant-api03-Bq7xR2mTvL9pWzYn4KdHsEjA"\n' > "$PROJ/leak.py"
+# Assembled at runtime: a literal key here would make the secrets gate refuse
+# to auto-commit this very repo.
+FAKE_KEY="sk-""ant-""api03-""Bq7xR2mTvL9pWzYn4KdHsEjA"
+printf 'KEY = "%s"\n' "$FAKE_KEY" > "$PROJ/leak.py"
 echo '{"hook_event_name":"on_session_end","session_id":"s1","extra":{"interrupted":false}}' \
   | "$PY" "$HOOKS/autogit_session.py" >/dev/null 2>&1
 N3=$(cd "$PROJ" && git rev-list --count HEAD)
