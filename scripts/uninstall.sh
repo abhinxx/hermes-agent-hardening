@@ -43,10 +43,17 @@ else
   echo "    no backup found - leaving SOUL.md in place"
 fi
 
-echo "[3/4] Remove hook scripts"
+echo "[3/6] Remove hook scripts"
 run "rm -rf '$HOOKS_DST'"
 
-echo "[4/4] Remove hook state (locks, turn verdicts, skill index)"
+echo "[4/6] Remove the footer plugin"
+run "rm -rf '$HERMES_HOME/plugins/hermes-autogit'"
+echo "    (also run: hermes plugins disable hermes-autogit)"
+
+echo "[5/6] Remove the undo CLI"
+run "rm -f '$HOME/.local/bin/hermes-autogit-undo'"
+
+echo "[6/6] Remove hook state (locks, turn verdicts, skill index, receipts)"
 run "rm -rf '$STATE_DIR'"
 
 echo
@@ -55,6 +62,7 @@ echo "  hermes config set agent.verify_on_stop false"
 echo "  hermes config set tool_loop_guardrails.hard_stop_enabled false"
 echo "  hermes config set delegation.max_concurrent_children 10"
 echo
+echo "Your project folders and their git repos are left alone on purpose."
 echo "Subagent output under ~/hermes_runs/ is left alone on purpose."
 [[ $APPLY -eq 1 ]] || echo
 [[ $APPLY -eq 1 ]] || echo "Dry run only. Re-run with --apply."

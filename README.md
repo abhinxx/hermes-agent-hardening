@@ -36,6 +36,8 @@ Full analysis: **[PLAN.md](PLAN.md)**.
 | **no-full-rewrite** | `pre_tool_call` | 51KB rewrites to change a colour | **Yes** - exit 2 |
 | **browser-lock** | `pre_tool_call` | Parallel subagents racing one browser | **Yes** - fail_closed |
 | **persist-subagent** | `subagent_stop` | Child output lost in a transient cache | **Yes** - observer |
+| **workspace-guard** | `pre_tool_call` | Files scattered loose in `$HOME` | **Yes** - exit 2, and `git init`s the project before the write |
+| **autogit** | `pre_verify` + `on_session_end` + `subagent_stop` | Work never committed | **Yes** - one commit per completed turn |
 | **skill-suggest** | `pre_llm_call` | Improvising when a skill exists | Advisory |
 | **SOUL.md** | system prompt | Over-building, narration, mode drift, style resets | Prompt-level |
 | **config flips** | config | Unverified "done", runaway loops | **Yes** - built-in |
@@ -181,6 +183,66 @@ evidence/                    baseline metrics from the failed session
 ```
 
 ---
+
+## Workspace and auto-git
+
+Every file Hermes creates lands in a git repo, without being asked.
+
+```
+you: "make a comparison page"
+  -> agent writes ~/Documents/codes/comparison/index.html
+  -> the hook created the folder and ran git init BEFORE the write
+  -> turn ends, the hook commits
+  -> reply ends with:  [git] comparison @ a3f9c21 · commit #1 · local only
+```
+
+**The rule.** A write to `$HOME`, the Desktop, the Documents root, or `/tmp`
+(for anything that looks like a deliverable) is refused with a message naming
+the right place. A write under the projects root creates the folder, runs
+`git init`, and writes a `.gitignore` first. The model is never asked and
+cannot forget.
+
+**`git init` runs once per project, ever.** Every write does a ~5ms
+`rev-parse` check; only a folder that is not yet a repo pays for an init.
+
+**Commits happen at completions, not at writes.** A 12-file task produces one
+commit, not twelve. The trigger is `pre_verify`, Hermes' own "the agent edited
+files and is about to finish" event, which also hands over the changed paths.
+
+| Trigger | When | What |
+|---|---|---|
+| `pre_tool_call` | before each write | gate + auto-init |
+| `pre_verify` | turn ends, files changed | **the commit** |
+| `transform_llm_output` | reply delivered | the `[git]` footer (plugin) |
+| `on_session_end` | session closes, incl. interrupt | sweep shell-written files, push |
+| `subagent_stop` | a child exits | commit that child's work |
+
+The footer is a plugin rather than a shell hook because `transform_llm_output`
+consumes a plain `str` return (`agent/turn_finalizer.py:607`) while shell-hook
+callbacks can only return dicts (`agent/shell_hooks.py:627`). Everything else
+is a shell hook.
+
+**Safety.**
+
+- **Secrets are the one fail-closed path.** A staged diff matching an API key,
+  private key block, or JWT aborts the commit and unstages. The file stays on
+  disk; the tool refuses to *record* it, never to write it. Prompt-derived
+  commit subjects are scanned too, so a pasted key cannot leak into `git log`.
+  `.env.example`, `*.sample`, `*.template` and obvious placeholders are exempt.
+- **Push only when `origin` already exists.** No repo is ever created on GitHub
+  for you.
+- **Worktrees** (`hermes -w`) commit but never push - those branches are
+  disposable by design.
+- **Parallel subagents** take a per-repo lock, so they cannot collide on
+  `.git/index.lock`.
+- **Undo:** `hermes-autogit-undo [repo]` rewinds the remote and returns the
+  changes to your working tree. It refuses to touch any commit lacking the
+  `Shipped-by: hermes-autogit` trailer.
+
+The projects root is chosen at install time: an existing `~/Documents/codes`,
+`~/code`, `~/Projects` or similar is detected and offered, otherwise
+`~/Documents/codes` is created. Override with `HERMES_CODES_ROOT`, or re-run
+`python3 scripts/setup_workspace.py --root <dir>`.
 
 ## Honest limits
 

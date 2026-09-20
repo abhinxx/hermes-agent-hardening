@@ -43,10 +43,40 @@ hooks:
       timeout: 10
       fail_closed: true
 
+    # TIER 0 - workspace gate. Refuses deliverables written loose in $HOME /
+    # Desktop / Documents / tmp, and guarantees that anything under the
+    # projects root is a git repo BEFORE the write lands (creating the folder
+    # and running `git init` as a side effect).
+    #
+    # Goes LAST: the question-gate and rewrite-guard are cheaper and higher
+    # precision, and there is no point creating a repo for a write that is
+    # about to be refused anyway. Never fail_closed - a discipline gate must
+    # not block work when it breaks.
+    - matcher: "write_file|patch"
+      command: "~/.hermes/agent-hooks/workspace_guard.py"
+      timeout: 15
+
+  pre_verify:
+    # TIER 0 - the completion commit. Fires once per turn, only when the agent
+    # edited files, with the changed-path list. Always returns {} so it can
+    # never extend a turn.
+    - command: "~/.hermes/agent-hooks/autogit_verify.py"
+      timeout: 30
+
+  on_session_end:
+    # TIER 0 - final sweep. Catches shell-written files that never passed
+    # through write_file, and pushes. Runs even when interrupted.
+    - command: "~/.hermes/agent-hooks/autogit_session.py"
+      timeout: 60
+
   subagent_stop:
     # TIER 0 - persist every child's output to ~/hermes_runs/<session>/
     - command: "~/.hermes/agent-hooks/persist_subagent.py"
       timeout: 15
+
+    # TIER 0 - commit a child's work when it exits, tagged with the child id.
+    - command: "~/.hermes/agent-hooks/autogit_subagent.py"
+      timeout: 30
 
 # First-use consent: each (event, command) pair prompts once. On a headless
 # or CI run, set this true or pass --accept-hooks.

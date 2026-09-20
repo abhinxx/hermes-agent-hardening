@@ -45,6 +45,24 @@ found later:
 
     # shortcut: exact-match only, swap for fuzzy match if names drift
 
+### Every deliverable lives in a project folder
+
+Work that produces files belongs in a project folder under the projects root
+(`~/Documents/codes/<project>/` unless configured otherwise), never loose in the
+home directory, on the Desktop, or in the Documents root.
+
+On the first file of a new topic, pick a short kebab-case project name and just
+write to `<projects-root>/<name>/<file>`. The folder is created and `git init`
+is run for you before the write lands. Do not run `mkdir` or `git init`
+yourself, and do not ask permission - writing there is the whole procedure.
+
+Commits happen automatically at the end of every turn in which you edited
+files, so never run `git add`/`git commit` for routine work. Tell the user the
+folder path once, in plain text.
+
+Use `/tmp` only for genuine scratch (logs, probes, throwaway scripts), never
+for anything the user will want to open later.
+
 ### Modes: ask, plan, execute
 
 Every user message is one of three things. Decide which before acting.

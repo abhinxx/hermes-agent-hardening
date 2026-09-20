@@ -35,7 +35,7 @@ if [[ ! -d "$HERMES_HOME" ]]; then
 fi
 
 # ---------------------------------------------------------------- preflight
-echo "[0/5] Preflight"
+echo "[0/8] Preflight"
 if ! command -v python3 >/dev/null; then
   echo "ERROR: python3 not on PATH" >&2; exit 1
 fi
@@ -48,16 +48,31 @@ if ! python3 "$REPO/tests/test_classifier.py" >/dev/null 2>&1; then
   echo "       run: python3 tests/test_classifier.py" >&2
   exit 1
 fi
+if ! python3 "$REPO/tests/test_workspace.py" >/dev/null 2>&1; then
+  echo "ERROR: workspace tests FAIL. Refusing to install." >&2
+  echo "       run: python3 tests/test_workspace.py" >&2
+  exit 1
+fi
+if ! python3 "$REPO/tests/test_autogit.py" >/dev/null 2>&1; then
+  echo "ERROR: autogit tests FAIL. Refusing to install." >&2
+  echo "       run: python3 tests/test_autogit.py" >&2
+  exit 1
+fi
 if ! bash "$REPO/tests/test_hooks.sh" >/dev/null 2>&1; then
   echo "ERROR: hook tests FAIL. Refusing to install." >&2
   echo "       run: bash tests/test_hooks.sh" >&2
+  exit 1
+fi
+if ! bash "$REPO/tests/test_workspace_hooks.sh" >/dev/null 2>&1; then
+  echo "ERROR: workspace hook tests FAIL. Refusing to install." >&2
+  echo "       run: bash tests/test_workspace_hooks.sh" >&2
   exit 1
 fi
 say "all tests pass"
 echo
 
 # ------------------------------------------------------------------ hooks
-echo "[1/5] Hook scripts -> $HOOKS_DST"
+echo "[1/8] Hook scripts -> $HOOKS_DST"
 run "mkdir -p '$HOOKS_DST' '$STATE_DIR'"
 for f in "$REPO"/hooks/*.py; do
   run "cp '$f' '$HOOKS_DST/'"
@@ -80,13 +95,39 @@ fi
 echo
 
 # ------------------------------------------------------------- skill index
-echo "[2/5] Skill index"
+echo "[2/8] Skill index"
 run "python3 '$REPO/scripts/build_skill_index.py'"
 say "re-run that command whenever you add or edit skills"
 echo
 
+# ---------------------------------------------------------- projects root
+echo "[3/8] Projects root"
+if [[ $APPLY -eq 1 ]]; then
+  python3 "$REPO/scripts/setup_workspace.py" ${SETUP_ARGS:-}
+else
+  echo "    would: python3 scripts/setup_workspace.py"
+fi
+echo
+
+# ------------------------------------------------------------- autogit CLI
+echo "[4/8] hermes-autogit-undo"
+run "mkdir -p '$HOME/.local/bin'"
+run "cp '$REPO/scripts/hermes-autogit-undo' '$HOME/.local/bin/'"
+run "chmod +x '$HOME/.local/bin/hermes-autogit-undo'"
+say "installed to ~/.local/bin (add it to PATH if it is not already)"
+echo
+
+# ----------------------------------------------------------------- plugin
+echo "[5/8] Footer plugin"
+# transform_llm_output consumes a plain string return; shell-hook callbacks can
+# only return dicts, so the commit footer has to be an in-process plugin.
+run "mkdir -p '$HERMES_HOME/plugins'"
+run "cp -R '$REPO/plugin/hermes-autogit' '$HERMES_HOME/plugins/'"
+say "installed hermes-autogit plugin"
+echo
+
 # -------------------------------------------------------------------- soul
-echo "[3/5] SOUL.md"
+echo "[6/8] SOUL.md"
 if [[ -f "$SOUL" ]]; then
   run "cp '$SOUL' '$SOUL.bak.$STAMP'"
   say "backed up existing SOUL.md -> SOUL.md.bak.$STAMP"
@@ -96,7 +137,7 @@ say "installed operating-discipline SOUL.md"
 echo
 
 # ------------------------------------------------------------------ config
-echo "[4/5] config.yaml hooks block"
+echo "[7/8] config.yaml hooks block"
 # A Hermes install normally has this, but a fresh HERMES_HOME may not. Without
 # it the merge exits 1 and `set -e` aborts the install half-done: SOUL.md
 # written, consent never granted, config flips never applied.
@@ -120,7 +161,7 @@ fi
 echo
 
 # ----------------------------------------------------------- config flips
-echo "[5/5] Config flips"
+echo "[8/8] Config flips"
 say "these reduce blast radius; each is independently reversible"
 run "hermes config set agent.verify_on_stop true"
 run "hermes config set tool_loop_guardrails.hard_stop_enabled true"

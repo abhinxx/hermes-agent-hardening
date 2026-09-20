@@ -1,0 +1,6 @@
+name: hermes-autogit
+version: 1.0.0
+description: Appends the git commit id and count to replies where files were committed.
+author: abhinxx
+provides_hooks:
+  - transform_llm_output
