@@ -37,8 +37,29 @@ Full analysis: **[PLAN.md](PLAN.md)**.
 | **browser-lock** | `pre_tool_call` | Parallel subagents racing one browser | **Yes** - fail_closed |
 | **persist-subagent** | `subagent_stop` | Child output lost in a transient cache | **Yes** - observer |
 | **skill-suggest** | `pre_llm_call` | Improvising when a skill exists | Advisory |
-| **SOUL.md** | prompt | Narration, mode drift, style resets | Prompt-level |
+| **SOUL.md** | system prompt | Over-building, narration, mode drift, style resets | Prompt-level |
 | **config flips** | config | Unverified "done", runaway loops | **Yes** - built-in |
+
+### Why SOUL.md and not a context-injection hook
+
+Ponytail and similar tools inject their ruleset through a `pre_llm_call` hook.
+On Hermes that is the wrong slot: hook context is appended to the **user
+message**, never the system prompt, specifically to protect the prompt cache.
+A 6KB ruleset injected that way is re-sent as fresh uncached tokens on every
+single turn.
+
+`SOUL.md` is loaded once into the cached system prompt and costs effectively
+nothing after the first turn. Same behaviour, no recurring token bill. The
+hooks are reserved for the things only a hook can do: refusing a tool call.
+
+### The ruleset
+
+`soul/SOUL.md` covers, in order: do the least thing that achieves the objective
+(a 5-rung ladder, search before building, match effort to the task), lazy about
+the solution but never about understanding, ask/plan/execute modes, no
+narration, report in artifacts, patch never regenerate, style instructions are
+permanent, structure by the user's model, load the documented method, delegate
+genuinely parallel work (and only that), own what you delegate, honesty, tone.
 
 ---
 
@@ -96,6 +117,17 @@ blocked. No state file means no block: fail-open by design.
 
 ## Install
 
+On any machine that already has Hermes:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/abhinxx/hermes-agent-hardening/main/bootstrap.sh | bash
+```
+
+Clones to `~/.hermes/hardening`, runs the tests, installs, grants hook consent.
+Idempotent - re-run it to update.
+
+Manual equivalent:
+
 ```bash
 git clone https://github.com/abhinxx/hermes-agent-hardening
 cd hermes-agent-hardening
@@ -105,17 +137,13 @@ bash tests/test_hooks.sh             # must print: passed: 22   failed: 0
 
 bash scripts/install.sh              # dry run - prints every change
 bash scripts/install.sh --apply      # commits, with timestamped backups
+
+hermes --accept-hooks -z "ok"        # REQUIRED: hooks do not fire unapproved
+hermes hooks doctor                  # must say "All shell hooks look healthy"
 ```
 
-The installer refuses to run if either suite fails. Restart Hermes afterwards;
-each hook prompts once for consent on first fire.
-
-Verify:
-
-```bash
-hermes hooks list
-hermes hooks doctor
-```
+**Then restart Hermes, the desktop app, and the gateway.** Hooks register at
+process start; anything already running will not have them.
 
 Rollback at any time:
 

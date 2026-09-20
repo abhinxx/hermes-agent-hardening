@@ -308,6 +308,42 @@ delegation.max_concurrent_children        10    -> 4
 Standing behavioural rules in the global always-loaded slot. No character cap,
 unlike memory. Relieves the two 100%-full memory files.
 
+**Slot choice matters.** Hook-injected context is appended to the *user
+message*, never the system prompt, deliberately, to keep the prompt cache
+intact. A ruleset injected that way is re-sent uncached every turn. `SOUL.md`
+is loaded once into the cached system prompt. Same behaviour, no recurring
+cost. Hooks stay reserved for what only a hook can do: refuse a tool call.
+
+Adapted from [ponytail](https://github.com/DietrichGebert/ponytail), whose
+measured result is -54% LOC on real agentic tasks:
+
+- **The ladder.** Stop at the first rung that holds: does it need to exist,
+  does it already exist here, does the stdlib/platform cover it, can it be one
+  line, only then write the minimum. Generalised past code to documents,
+  research, and plans.
+- **Lazy about the solution, never about understanding.** Never simplify away
+  verification, trust-boundary validation, data-loss handling, security, or
+  anything explicitly requested. Small because sufficient, not because cut short.
+- **The debt marker.** A `shortcut:` comment naming the ceiling and the upgrade
+  path, so a deliberate compromise is greppable instead of silent.
+
+Not adopted: their per-turn injection hook (wrong slot on Hermes, see above),
+and the lite/full/ultra mode dial (a second control surface for a single user
+who wants one behaviour).
+
+### Phase 3b - Delegation (ready)
+
+The inverse problem to over-building: the agent almost never spawns subagents,
+even when a task is embarrassingly parallel. `SOUL.md` now states the trigger
+explicitly - three or more pieces that do not depend on each other, each
+describable in a short brief - and the anti-trigger: not for a single lookup,
+not when step two needs step one, not to look busy. Capped at four, matching
+`delegation.max_concurrent_children`.
+
+This is prompt-level. There is no event that fires on "should have delegated",
+so it cannot be enforced. If it does not move in Phase 5, the next lever is a
+`pre_llm_call` hook that detects list-shaped requests and injects a reminder.
+
 ### Phase 4 - Skill retrieval (ready)
 `build_skill_index.py` + `skill_suggest.py`. Indexes 105 skills into 3,042
 keywords. Verified to surface `reddit-ai-research` and `linkup-search` for the
@@ -324,6 +360,7 @@ baseline in `evidence/`. The metrics that must move:
 | Skill loads per 100 API calls | 1.4 | > 5 |
 | Full-file rewrites of large files | 3 | 0 |
 | p90 latency to substantive answer | 245s | < 90s |
+| Subagents spawned on parallel tasks | ~0 unprompted | used when 3+ independent pieces |
 
 If these do not move, the hooks are theatre and should be removed.
 
