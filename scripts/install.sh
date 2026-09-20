@@ -97,6 +97,10 @@ echo
 
 # ------------------------------------------------------------------ config
 echo "[4/5] config.yaml hooks block"
+# A Hermes install normally has this, but a fresh HERMES_HOME may not. Without
+# it the merge exits 1 and `set -e` aborts the install half-done: SOUL.md
+# written, consent never granted, config flips never applied.
+[[ -f "$CONFIG" ]] || run "touch '$CONFIG'"
 if [[ -f "$CONFIG" ]]; then
   run "cp '$CONFIG' '$CONFIG.bak.$STAMP'"
   say "backed up config.yaml -> config.yaml.bak.$STAMP"
