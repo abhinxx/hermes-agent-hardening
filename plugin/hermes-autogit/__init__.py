@@ -26,19 +26,17 @@ if HOOKS_DIR not in sys.path:
 
 def _format_line(r):
     name = r.get("name") or os.path.basename((r.get("repo") or "repo").rstrip("/"))
-    status = r.get("status")
-
-    if status == "held":
-        return "[git] %s · HELD: %s not committed" % (
-            name, r.get("reason", "secret detected"),
-        )
-    if status != "committed":
+    if r.get("status") != "committed":
         return ""
 
     bits = ["[git] %s @ %s" % (name, r.get("sha") or "?")]
     if r.get("count"):
         bits.append("commit #%d" % r["count"])
-    bits.append("pushed" if r.get("pushed") else "local only")
+    if r.get("secret"):
+        # Committed locally, push deliberately skipped.
+        bits.append("NOT pushed: %s" % r["secret"])
+    else:
+        bits.append("pushed" if r.get("pushed") else "local only")
     return " · ".join(bits)
 
 

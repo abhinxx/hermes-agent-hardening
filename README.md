@@ -224,10 +224,12 @@ is a shell hook.
 
 **Safety.**
 
-- **Secrets are the one fail-closed path.** A staged diff matching an API key,
-  private key block, or JWT aborts the commit and unstages. The file stays on
-  disk; the tool refuses to *record* it, never to write it. Prompt-derived
-  commit subjects are scanned too, so a pasted key cannot leak into `git log`.
+- **Secrets never block a commit.** Your machine, your history: a commit
+  always lands, because a refused commit loses work. What a secret does block
+  is the **push** - a staged diff matching an API key, private key block, or
+  JWT downgrades that commit to local-only, and the footer says
+  `NOT pushed: anthropic key in config.py`. Nothing is unstaged or discarded.
+  Commit subjects are scanned too, so a pasted key never reaches `git log`.
   `.env.example`, `*.sample`, `*.template` and obvious placeholders are exempt.
 - **Push only when `origin` already exists.** No repo is ever created on GitHub
   for you.

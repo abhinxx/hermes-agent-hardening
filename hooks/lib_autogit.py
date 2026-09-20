@@ -287,12 +287,14 @@ def commit_repo(repo_root, explicit_subject=None, push=True, session_id=None):
 
             _rc, diff = _git(repo_root, ["diff", "--cached", "-U0"], timeout=60)
             hits = scan_secrets(diff)
+            # A local commit is always allowed - it is your machine, and a
+            # blocked commit loses work. Secrets only matter when something
+            # leaves the machine, so a hit downgrades this to local-only and
+            # the push is skipped. Nothing is ever unstaged or discarded.
             if hits:
-                _git(repo_root, ["reset"])
-                receipt["status"] = "held"
-                receipt["reason"] = "%s in %s" % (hits[0][0], hits[0][1] or "staged diff")
-                _log("HELD %s: %s" % (repo_root, receipt["reason"]))
-                return receipt
+                push = False
+                receipt["secret"] = "%s in %s" % (hits[0][0], hits[0][1] or "staged diff")
+                _log("NO-PUSH %s: %s (committed locally)" % (repo_root, receipt["secret"]))
 
             subject = build_subject(repo_root, explicit_subject)
             rc, _ = _git(repo_root, ["commit", "-m", subject, "-m", TRAILER])
@@ -338,7 +340,7 @@ def commit_repo(repo_root, explicit_subject=None, push=True, session_id=None):
 # --------------------------------------------------------------------------
 
 def write_receipt(session_id, receipt):
-    if receipt.get("status") not in ("committed", "held"):
+    if receipt.get("status") != "committed":
         return
     try:
         os.makedirs(RECEIPT_DIR, exist_ok=True)

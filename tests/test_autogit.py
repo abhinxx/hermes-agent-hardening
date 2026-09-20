@@ -103,16 +103,19 @@ def main():
               A._clean_subject("Built the comparison page.", "FB"),
               "Built the comparison page.")
 
-        print("\nsecrets gate (THE fail-closed path)")
+        print("\nsecrets: commit locally, refuse to push")
         with open(os.path.join(proj, "leak.py"), "w") as f:
             f.write('KEY = "%s"\n' % FAKE_ANTHROPIC_KEY)
-        before = git(proj, "rev-list", "--count", "HEAD").strip()
-        r4 = A.commit_repo(proj, push=False, session_id="s1")
-        check("commit held", r4["status"], "held")
-        check("no new commit", git(proj, "rev-list", "--count", "HEAD").strip(), before)
+        before = int(git(proj, "rev-list", "--count", "HEAD").strip())
+        r4 = A.commit_repo(proj, push=True, session_id="s1")
+        check("still committed (work is never lost)", r4["status"], "committed")
+        check("commit count advanced",
+              int(git(proj, "rev-list", "--count", "HEAD").strip()), before + 1)
+        truthy("secret recorded on the receipt", r4.get("secret"))
+        check("push suppressed", r4.get("pushed"), False)
         truthy("file still on disk", os.path.exists(os.path.join(proj, "leak.py")))
-        check("nothing left staged", git(proj, "diff", "--cached", "--name-only").strip(), "")
         os.remove(os.path.join(proj, "leak.py"))
+        A.commit_repo(proj, push=False, session_id="s1")
 
         print("\nsecrets: placeholders and templates are exempt")
         check("placeholder ignored",
